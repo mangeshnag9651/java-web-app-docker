@@ -1,0 +1,55 @@
+pipeline {
+    agent any
+    stages{
+        stage('Pull Docker Image'){
+            steps{
+                script{
+                    sh 'docker pull mangesh9651/devops-integration'
+
+ 
+
+                }
+            }
+        }
+        stage ('Deploy'){
+            steps {
+                sh 'docker stop devops-automat1 || true'
+                sh 'docker rm devops-automat1 || true'
+                sh 'docker run -d -p 8085:8080 --name devops-automat1 mangesh9651/devops-integration'
+            }
+        }
+    }
+}
+
+
+
+PULL and Deployment on another server:
+
+node{
+    
+    stage("Git Clone"){
+        
+        git url: 'https://github.com/mangeshnag9651/java-web-app-docker.git', branch: 'master'
+    }
+    stage(" Maven Clean Package"){
+      def mavenHome =  tool name: "Maven", type: "maven"
+       sh "${mavenHome}/bin/mvn clean package"
+      
+    }
+    stage("Build Docker Image"){
+        sh "docker build -t mangesh9651/java-web-app-docker ."
+    }
+    stage('Push Docker Image'){
+        
+        withCredentials([string(credentialsId: 'Dockerhubpwd', variable: 'Dockerhubpwd')]) {
+            sh "docker login -u mangesh9651 -p ${Dockerhubpwd}"
+         }
+            sh "docker push mangesh9651/java-web-app-docker"
+    }
+    stage('Run Docker Image In Dev Server'){
+        sshagent(['Docker_Dev_Server_SSH']) {
+          sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.80.211 docker rm -f javacontainer || true'
+          sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.80.211 docker run -d -p 8080:8080 --name javacontainer mangesh9651/java-web-app-docker'      }
+        
+    }
+}
